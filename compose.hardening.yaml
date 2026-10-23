@@ -1,0 +1,59 @@
+services:
+  postgres:
+    networks: !override
+      - database
+  db-init:
+    image: postgres:17
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${DB_NAME:?Missing DB_NAME}
+      PGUSER: ${DB_USER:?Missing DB_USER}
+      PGPASSWORD: ${DB_PASSWORD:?Missing DB_PASSWORD}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+      POSTGRES_EXPORTER_PASSWORD: ${POSTGRES_EXPORTER_PASSWORD:?Missing exporter password}
+    command: ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/bootstrap/roles.sql"]
+    volumes:
+      - ./database/roles.sql:/bootstrap/roles.sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [database]
+  app:
+    environment:
+      DB_USER: restaurant_app
+      DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    ports: !reset []
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    networks: !override
+      - database
+      - backend
+  pgadmin:
+    networks: !override
+      - database
+      - backend
+  postgres-exporter:
+    environment:
+      DATA_SOURCE_URI: "postgres:5432/${DB_NAME:?Missing DB_NAME}?sslmode=disable"
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: !override
+      - database
+      - backend
+  grafana:
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/restaurant-dashboard.json:/etc/grafana/dashboards/restaurant-dashboard.json:ro
+networks:
+  database:
+    internal: true
