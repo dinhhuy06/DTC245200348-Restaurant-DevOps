@@ -1,0 +1,8 @@
+# 1. Xem access log Nginx
+{job="nginx", filename="/var/log/restaurant/access.log"}
+
+# 2. Loc request tra ve HTTP 404
+{job="nginx", filename="/var/log/restaurant/access.log"} |= "\" 404 "
+
+# 3. Dem request trong 1 gio - chon Type: Instant
+sum(count_over_time({job="nginx", filename="/var/log/restaurant/access.log"}[1h]))
