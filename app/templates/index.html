@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Quản lý nhà hàng</title>
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <h1>QUẢN LÝ NHÀ HÀNG</h1>
+        <p>Quản lý món ăn, bàn ăn và đơn hàng</p>
+        <nav>
+            <a href="#dishes">Món ăn</a>
+            <a href="#tables">Bàn ăn</a>
+            <a href="#orders">Đơn hàng</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="dishes">
+            <h2>1. Quản lý món ăn</h2>
+
+            <form action="{{ url_for('add_dish') }}" method="post">
+                <input name="name" placeholder="Tên món ăn"
+                       maxlength="100" required>
+                <input name="price" type="number"
+                       placeholder="Giá tiền"
+                       min="0" max="999999999"
+                       step="0.01" required>
+                <button type="submit">Thêm món</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên món và giá tiền (VNĐ)</th>
+                        <th>Xóa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dish in dishes %}
+                    <tr>
+                        <td>{{ dish.id }}</td>
+                        <td>
+                            <form action="{{ url_for('edit_dish', dish_id=dish.id) }}"
+                                  method="post">
+                                <input name="name" value="{{ dish.name }}"
+                                       maxlength="100" required>
+                                <input name="price" type="number"
+                                       value="{{ dish.price }}"
+                                       min="0" max="999999999"
+                                       step="0.01" required>
+                                <button type="submit">Lưu sửa</button>
+                            </form>
+                        </td>
+                        <td>
+                            <form action="{{ url_for('delete_dish', dish_id=dish.id) }}"
+                                  method="post"
+                                  onsubmit="return confirm('Bạn muốn xóa món này?')">
+                                <button type="submit" class="danger">Xóa</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3">Chưa có món ăn.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section id="tables">
+            <h2>2. Quản lý bàn ăn</h2>
+
+            <form action="{{ url_for('add_table') }}" method="post">
+                <input name="name" placeholder="Tên bàn, ví dụ: Bàn 01"
+                       maxlength="100" required>
+                <button type="submit">Thêm bàn</button>
+            </form>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên bàn</th>
+                        <th>Trạng thái</th>
+                        <th>Xóa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for table in tables %}
+                    <tr>
+                        <td>{{ table.id }}</td>
+                        <td>
+                            <form action="{{ url_for('edit_table', table_id=table.id) }}"
+                                  method="post">
+                                <input name="name" value="{{ table.name }}"
+                                       maxlength="100" required>
+                                <button type="submit">Lưu sửa</button>
+                            </form>
+                        </td>
+                        <td>
+                            {% if table.occupied %}
+                            <span class="busy">Đang phục vụ</span>
+                            {% else %}
+                            <span class="available">Bàn trống</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form action="{{ url_for('delete_table', table_id=table.id) }}"
+                                  method="post"
+                                  onsubmit="return confirm('Bạn muốn xóa bàn này?')">
+                                <button type="submit" class="danger">Xóa</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4">Chưa có bàn ăn.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section id="orders">
+            <h2>3. Quản lý đơn hàng</h2>
+
+            <form action="{{ url_for('create_order') }}" method="post">
+                <select name="table_id" required>
+                    <option value="">-- Chọn bàn trống --</option>
+                    {% for table in tables %}
+                    {% if not table.occupied %}
+                    <option value="{{ table.id }}">{{ table.name }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+                <button type="submit">Tạo đơn hàng</button>
+            </form>
+
+            {% for order in orders %}
+            <article class="order">
+                <h3>Đơn #{{ order.id }} — {{ order.table_name }}</h3>
+                <p>
+                    Thời gian tạo: {{ order.created_at }}
+                    <br>
+                    Trạng thái:
+                    {% if order.status == 'open' %}
+                    <strong class="busy">Chưa thanh toán</strong>
+                    {% else %}
+                    <strong class="available">Đã thanh toán</strong>
+                    {% endif %}
+                </p>
+
+                {% if order.status == 'open' %}
+                <form action="{{ url_for('add_order_item', order_id=order.id) }}"
+                      method="post">
+                    <select name="dish_id" required>
+                        <option value="">-- Chọn món --</option>
+                        {% for dish in dishes %}
+                        <option value="{{ dish.id }}">
+                            {{ dish.name }} —
+                            {{ "{:,.0f}".format(dish.price) }} VNĐ
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <input name="quantity" type="number"
+                           value="1" min="1" max="100" required>
+                    <button type="submit">Thêm vào đơn</button>
+                </form>
+                {% endif %}
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Món ăn</th>
+                            <th>Đơn giá</th>
+                            <th>Số lượng</th>
+                            <th>Thành tiền</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items if item.order_id == order.id %}
+                        <tr>
+                            <td>{{ item.dish_name }}</td>
+                            <td>
+                                {{ "{:,.0f}".format(item.unit_price) }} VNĐ
+                            </td>
+                            <td>
+                                {% if order.status == 'open' %}
+                                <form action="{{ url_for('update_quantity', item_id=item.id) }}"
+                                      method="post">
+                                    <input name="quantity" type="number"
+                                           value="{{ item.quantity }}"
+                                           min="1" max="100" required>
+                                    <button type="submit">Cập nhật</button>
+                                </form>
+                                {% else %}
+                                {{ item.quantity }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ "{:,.0f}".format(item.quantity * item.unit_price) }}
+                                VNĐ
+                            </td>
+                            <td>
+                                {% if order.status == 'open' %}
+                                <form action="{{ url_for('delete_item', item_id=item.id) }}"
+                                      method="post"
+                                      onsubmit="return confirm('Xóa món khỏi đơn?')">
+                                    <button type="submit" class="danger">Xóa món</button>
+                                </form>
+                                {% else %}
+                                —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5">Đơn chưa có món ăn.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <p class="total">
+                    Tổng tiền: {{ "{:,.0f}".format(order.total) }} VNĐ
+                </p>
+
+                {% if order.status == 'open' %}
+                <form action="{{ url_for('close_order', order_id=order.id) }}"
+                      method="post"
+                      onsubmit="return confirm('Xác nhận đã thu tiền và đóng đơn?')">
+                    <button type="submit">Xác nhận thanh toán</button>
+                </form>
+                {% endif %}
+            </article>
+            {% else %}
+            <p>Chưa có đơn hàng. Hãy thêm bàn rồi tạo đơn.</p>
+            {% endfor %}
+        </section>
+    </main>
+</body>
+</html>
